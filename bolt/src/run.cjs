@@ -18,7 +18,7 @@
 */
 
 const { Remote } = require('./Remote.cjs');
-const { makeTemplate } = require('./runtime-config.cjs');
+const { makeTemplate, applyGPUConfig } = require('./runtime-config.cjs');
 const config = require('./config.cjs');
 
 function getPath(packageDir, entry) {
@@ -145,10 +145,15 @@ function setupResources(remote, pkg) {
 function prepareBundle(remote, pkg, bundleConfig, layers) {
   const bundleDir = remote.getPkgBundleDir(pkg);
   const bundleRootfsDir = bundleDir + "/rootfs";
-  if (!remote.isMounted(bundleRootfsDir)) {
+
+  if (remote.isMounted(bundleRootfsDir)) {
+    remote.unmount(bundleRootfsDir);
+    remote.rmdir(`${bundleDir}/rw/upper/usr/lib`);
+  } else {
     remote.mkdir(`${bundleRootfsDir} ${bundleDir}/rw/{upper,work}`);
-    remote.exec(`mount -t overlay overlay -o lowerdir=${layers.join(":")},upperdir=${bundleDir}/rw/upper,workdir=${bundleDir}/rw/work ${bundleRootfsDir}`);
   }
+
+  remote.exec(`mount -t overlay overlay -o lowerdir=${layers.join(":")},upperdir=${bundleDir}/rw/upper,workdir=${bundleDir}/rw/work ${bundleRootfsDir}`);
   remote.storeObject(`${bundleDir}/config.json`, bundleConfig);
 }
 
@@ -222,21 +227,8 @@ function setupGPULayer(remote, bundleConfig) {
     }
   }
 
-  if (remote.fileExists(config.REMOTE_GPU_CONFIG_SCRIPT)) {
-    const concatIfNotEmpty = (to, from) => {
-      if (from) {
-        to = to.concat(from);
-      }
-      return to;
-    };
-
-    const gpuConfig = JSON.parse(remote.exec(config.REMOTE_GPU_CONFIG_SCRIPT));
-
-    bundleConfig.mounts = concatIfNotEmpty(bundleConfig.mounts, gpuConfig?.mounts);
-    bundleConfig.linux.devices = concatIfNotEmpty(bundleConfig.linux.devices,
-      gpuConfig?.linux?.devices);
-    bundleConfig.linux.resources.devices = concatIfNotEmpty(bundleConfig.linux.resources.devices,
-      gpuConfig?.linux?.resources?.devices);
+  if (remote.fileExists(config.REMOTE_GPU_CONFIG)) {
+    applyGPUConfig(remote, bundleConfig, remote.parseJSONFile(config.REMOTE_GPU_CONFIG));
   }
 }
 
@@ -264,10 +256,10 @@ function run(remoteName, pkg) {
   } else {
     const platform = getPlatform(remote);
     try {
-      require(`./platform-${platform}.cjs`).updateBundleConfig(remote, bundleConfig);
+      applyGPUConfig(remote, bundleConfig, require(`./platform-${platform}.cjs`));
     } catch (err) {
       if (platform) {
-        console.error(`Platform ${platform} is not supported`);
+        console.error(`Platform ${platform} is not supported ${err}`);
       } else {
         console.error(`Cannot detect platform type`);
       }

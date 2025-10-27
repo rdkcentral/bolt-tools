@@ -23,4 +23,4 @@ exports.REMOTE_MOUNTS_DIR = "/data/bolt/mounts";
 exports.REMOTE_BUNDLES_DIR = "/data/bolt/bundles";
 exports.REMOTE_GPU_LAYER = "/data/bolt/gpu.erofs";
 exports.REMOTE_GPU_LAYER_MOUNT_DIR = "/data/bolt/gpu";
-exports.REMOTE_GPU_CONFIG_SCRIPT = "/data/bolt/gpu.sh";
+exports.REMOTE_GPU_CONFIG = "/data/bolt/gpu.json";
