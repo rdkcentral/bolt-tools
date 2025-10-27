@@ -250,4 +250,90 @@ function makeTemplate() {
   return template;
 }
 
+function addDevice(config, path, type, major, minor) {
+  config.linux.devices.push({
+    path,
+    type,
+    major,
+    minor
+  });
+
+  config.linux.resources.devices.push({
+    allow: true,
+    type,
+    major,
+    minor,
+    access: "rw"
+  });
+}
+
+function hexToNumber(str) {
+  if (typeof str === "string") {
+    const val = Number.parseInt(str, 16);
+    if (!Number.isNaN(val)) {
+      return val;
+    }
+  }
+  throw new Error(`Cannot parse ${str} as hex number`);
+}
+
+function processDevNodeEntry(remote, config, devNode) {
+  try {
+    const [perm, majorHex, minorHex] = remote.exec(`stat -c '%A:%t:%T' ${devNode}`).trim().split(":");
+    const type = perm[0];
+    if (type === "c" || type === "b") {
+      addDevice(config, devNode, type, hexToNumber(majorHex), hexToNumber(minorHex));
+    } else {
+      throw new Error(`not a device (perm: ${perm})`);
+    }
+  } catch (e) {
+    console.warn(`Ignoring devNode entry ${devNode}: ${e}`);
+  }
+}
+
+function processFileEntry(config, fileEntry) {
+  let source;
+  let destination;
+
+  switch (fileEntry?.type) {
+    case "bind":
+      source = fileEntry?.source;
+      destination = fileEntry?.destination;
+      break;
+    case "symlink":
+      source = fileEntry?.target;
+      destination = fileEntry?.linkPath;
+      break;
+  }
+
+  if (source && destination) {
+    config.mounts.push({
+      source,
+      destination,
+      type: "bind",
+      options: [
+        "rbind",
+        "nosuid",
+        "nodev",
+        "ro"
+      ]
+    });
+  } else {
+    console.warn(`Ignoring unknown file entry: ${JSON.stringify(fileEntry, null, 2)}`);
+  }
+}
+
+function applyGPUConfig(remote, config, gpuConfig) {
+  const devNodes = gpuConfig?.vendorGpuSupport?.devNodes ?? [];
+  const files = gpuConfig?.vendorGpuSupport?.files ?? [];
+
+  for (let node of devNodes) {
+    processDevNodeEntry(remote, config, node);
+  }
+  for (let file of files) {
+    processFileEntry(config, file);
+  }
+}
+
 exports.makeTemplate = makeTemplate;
+exports.applyGPUConfig = applyGPUConfig;
