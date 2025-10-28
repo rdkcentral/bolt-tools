@@ -25,6 +25,7 @@ module.exports = {
       "/dev/dma_heap/heap-gfx",
       "/dev/dma_heap/system-uncached"
     ],
+    "groupIds": ["video"],
     "files": [
       {
         "source": "/usr/lib/libdrm.so.2",
