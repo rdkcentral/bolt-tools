@@ -291,6 +291,20 @@ function processDevNodeEntry(remote, config, devNode) {
   }
 }
 
+function processGroupIdEntry(remote, config, groupId) {
+  try {
+    const gid = +remote.exec(`grep '^${groupId}:' /etc/group`).trim().split(":")[2];
+    config.process.user.additionalGids.push(gid);
+    config.linux.gidMappings.push({
+      containerID: gid,
+      hostID: gid,
+      size: 1
+    });
+  } catch (e) {
+    console.warn(`Ignoring groupId entry ${groupId}: ${e}`);
+  }
+}
+
 function processFileEntry(config, fileEntry) {
   let source;
   let destination;
@@ -326,12 +340,19 @@ function processFileEntry(config, fileEntry) {
 function applyGPUConfig(remote, config, gpuConfig) {
   const devNodes = gpuConfig?.vendorGpuSupport?.devNodes ?? [];
   const files = gpuConfig?.vendorGpuSupport?.files ?? [];
+  const groupIds = gpuConfig?.vendorGpuSupport?.groupIds ?? [];
 
   for (let node of devNodes) {
     processDevNodeEntry(remote, config, node);
   }
   for (let file of files) {
     processFileEntry(config, file);
+  }
+  if (groupIds.length && !Array.isArray(config.process.user.additionalGids)) {
+    config.process.user.additionalGids = [];
+  }
+  for (let groupId of groupIds) {
+    processGroupIdEntry(remote, config, groupId);
   }
 }
 
