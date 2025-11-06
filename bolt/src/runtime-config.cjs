@@ -31,7 +31,6 @@ const template = {
       "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
       "TERM=xterm",
       "HOME=/home/root",
-      "LD_PRELOAD=/usr/lib/libwayland-client.so.0:/usr/lib/libwayland-egl.so.0",
     ],
     "cwd": "/",
     "capabilities": {
@@ -115,6 +114,16 @@ const template = {
   },
   "hostname": "default",
   "mounts": [
+    {
+      "destination": "/tmp",
+      "type": "tmpfs",
+      "source": "tmpfs",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev"
+      ]
+    },
     {
       "destination": "/proc",
       "type": "proc",

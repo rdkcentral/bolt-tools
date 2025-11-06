@@ -33,16 +33,6 @@ module.exports = {
         "type": "bind"
       },
       {
-        "source": "/usr/lib/libwayland-egl.so",
-        "destination": "/usr/lib/libwayland-egl.so",
-        "type": "bind"
-      },
-      {
-        "target": "/usr/lib/libwayland-egl.so",
-        "linkPath": "/usr/lib/libwayland-egl.so.0",
-        "type": "symlink"
-      },
-      {
         "target": "/usr/lib/libwayland-egl.so",
         "linkPath": "/usr/lib/libwayland-egl.so.1",
         "type": "symlink"
@@ -70,16 +60,6 @@ module.exports = {
       {
         "source": "/usr/lib/libMali.so",
         "destination": "/usr/lib/libMali.so",
-        "type": "bind"
-      },
-      {
-        "source": "/usr/lib/libwesteros_gl.so.0",
-        "destination": "/usr/lib/libwesteros_gl.so.0",
-        "type": "bind"
-      },
-      {
-        "source": "/usr/lib/libamlavsync.so",
-        "destination": "/usr/lib/libamlavsync.so",
         "type": "bind"
       }
     ]
