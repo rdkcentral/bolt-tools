@@ -76,6 +76,10 @@ class Remote {
     return exec(`ssh ${this.name} "test -f ${path}"; echo $?`).trim() === "0";
   }
 
+  dirExists(path) {
+    return exec(`ssh ${this.name} "test -d ${path}"; echo $?`).trim() === "0";
+  }
+
   socketExists(path) {
     return exec(`ssh ${this.name} "test -S ${path}"; echo $?`).trim() === "0";
   }

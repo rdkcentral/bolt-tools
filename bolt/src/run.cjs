@@ -148,10 +148,12 @@ function prepareBundle(remote, pkg, bundleConfig, layers) {
 
   if (remote.isMounted(bundleRootfsDir)) {
     remote.unmount(bundleRootfsDir);
-    remote.rmdir(`${bundleDir}/rw/upper/usr/lib`);
-  } else {
-    remote.mkdir(`${bundleRootfsDir} ${bundleDir}/rw/{upper,work}`);
   }
+
+  /* remove mount points inside /usr/lib in rw overlay to cleanup leftovers from previous runs */
+  remote.rmdir(`${bundleDir}/rw/upper/usr/lib`);
+
+  remote.mkdir(`${bundleRootfsDir} ${bundleDir}/rw/{upper,work}`);
 
   remote.exec(`mount -t overlay overlay -o lowerdir=${layers.join(":")},upperdir=${bundleDir}/rw/upper,workdir=${bundleDir}/rw/work ${bundleRootfsDir}`);
   remote.storeObject(`${bundleDir}/config.json`, bundleConfig);
@@ -219,17 +221,19 @@ function getConfigs(remote, pkg) {
   return configs;
 }
 
-function setupGPULayer(remote, bundleConfig) {
-  if (!remote.isMounted(config.REMOTE_GPU_LAYER_MOUNT_DIR)) {
-    if (remote.fileExists(config.REMOTE_GPU_LAYER)) {
-      remote.mkdir(config.REMOTE_GPU_LAYER_MOUNT_DIR);
-      remote.mount(config.REMOTE_GPU_LAYER, config.REMOTE_GPU_LAYER_MOUNT_DIR);
-    }
+function addDeviceGPULayer(remote, bundleConfig, layerDirs) {
+  let result = false;
+
+  if (remote.dirExists(config.REMOTE_GPU_LAYER_FS)) {
+    layerDirs.push(config.REMOTE_GPU_LAYER_FS);
   }
 
   if (remote.fileExists(config.REMOTE_GPU_CONFIG)) {
     applyGPUConfig(remote, bundleConfig, remote.parseJSONFile(config.REMOTE_GPU_CONFIG));
+    result = true;
   }
+
+  return result;
 }
 
 function run(remoteName, pkg) {
@@ -249,11 +253,7 @@ function run(remoteName, pkg) {
     layerDirs.push(mountIfNeeded(remote, pkg));
   }
 
-  setupGPULayer(remote, bundleConfig);
-
-  if (remote.isMounted(config.REMOTE_GPU_LAYER_MOUNT_DIR)) {
-    layerDirs.push(config.REMOTE_GPU_LAYER_MOUNT_DIR);
-  } else {
+  if (!addDeviceGPULayer(remote, bundleConfig, layerDirs)) {
     const platform = getPlatform(remote);
     try {
       applyGPUConfig(remote, bundleConfig, require(`./platform-${platform}.cjs`));
