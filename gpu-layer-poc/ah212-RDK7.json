@@ -1,0 +1,13 @@
+{
+  "vendorGpuSupport": {
+    "devNodes": [
+      "/dev/mali0",
+      "/dev/ion",
+      "/dev/dma_heap/heap-gfx",
+      "/dev/dma_heap/system-uncached"
+    ],
+    "groupIds": [
+      "video"
+    ]
+  }
+}
