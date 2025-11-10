@@ -21,21 +21,55 @@ const { Remote } = require('./Remote.cjs');
 const { makeTemplate } = require('./runtime-config.cjs');
 const config = require('./config.cjs');
 
-function getConfigPath(remote, packageDir) {
-  const index = remote.parseJSONFile(packageDir + "/index.json");
-  const [algo, digest] = index.config.digest.split(":");
+function getPath(packageDir, entry) {
+  const [algo, digest] = entry.digest.split(":");
   return packageDir + "/blobs/" + algo + "/" + digest;
 }
 
+function isPackageManifest(manifest) {
+  return manifest.mediaType === "application/vnd.oci.image.manifest.v1+json" &&
+    manifest.artifactType === "application/vnd.rdk.package+type" &&
+    manifest.config?.mediaType === "application/vnd.rdk.package.config.v1+json";
+}
+
+function getPackageManifest(remote, packageDir, index) {
+  if (index.mediaType === "application/vnd.oci.image.index.v1+json") {
+    for (let manifestInfo of index.manifests) {
+      if (manifestInfo.mediaType === "application/vnd.oci.image.manifest.v1+json") {
+        const manifest = remote.parseJSONFile(getPath(packageDir, manifestInfo));
+        if (isPackageManifest(manifest)) {
+          return manifest;
+        }
+      }
+    }
+  }
+
+  if (isPackageManifest(index)) {
+    return index;
+  }
+
+  return null;
+}
+
+function getConfigPath(remote, packageDir) {
+  const index = remote.parseJSONFile(packageDir + "/index.json");
+  const manifest = getPackageManifest(remote, packageDir, index);
+
+  if (manifest) {
+    return getPath(packageDir, manifest.config);
+  }
+
+  return null;
+}
+
 function getLayerInfo(remote, packageDir) {
-  const layer = remote.parseJSONFile(packageDir + "/index.json").layers[0];
-  const [algo, digest] = layer.digest.split(":");
+  const index = remote.parseJSONFile(packageDir + "/index.json");
+  const layer = getPackageManifest(remote, packageDir, index).layers[0];
 
   if (layer.mediaType === "application/vnd.rdk.package.content.layer.v1.erofs+dmverity") {
     return {
-      path: packageDir + "/blobs/" + algo + "/" + digest,
+      path: getPath(packageDir, layer),
       size: layer.size,
-      digest,
       roothash: layer.annotations["org.rdk.package.content.dmverity.roothash"],
       offset: layer.annotations["org.rdk.package.content.dmverity.offset"],
     };

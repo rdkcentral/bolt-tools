@@ -39,12 +39,18 @@ async function pack(configFile, content) {
   statSync(content);
   const config = JSON.parse(readFileSync(configFile));
   validateConfig(config);
-  const type = config.packageType;
   const output = `${config.id}+${config.version}`;
 
+  if (exec(`which ralfpack >/dev/null; echo $?`).trim() === "0") {
+    exec(`ralfpack create --config ${configFile} --content ${content} --image-format erofs.lz4 ${output}.bolt`);
+  } else {
+    await packInternal(configFile, content, configStat, config, output);
+  }
+}
+
+async function packInternal(configFile, content, configStat, config, output) {
   rmSync(output, { recursive: true, force: true });
   rmSync(output + ".bolt", { recursive: true, force: true });
-
   const blobs = output + '/blobs/sha256';
   const erofsTmpFile = output + '/erofs';
   mkdirSync(blobs, { recursive: true });
@@ -58,7 +64,7 @@ async function pack(configFile, content) {
   copyFileSync(configFile, output + '/blobs/sha256/' + configDigest);
 
   const manifest = makeArtifactManifest({
-    type,
+    type: config.packageType,
     configSize: configStat.size,
     configDigest,
     contentSize: contentStat.size,
