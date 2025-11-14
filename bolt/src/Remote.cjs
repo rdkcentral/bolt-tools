@@ -19,6 +19,7 @@
 
 const { exec, execNoOutput } = require('./utils.cjs');
 const config = require('./config.cjs');
+const { writeFileSync, rmSync } = require('node:fs');
 
 class Remote {
   constructor(name) {
@@ -85,7 +86,16 @@ class Remote {
   }
 
   storeObject(path, object) {
-    execNoOutput(`ssh ${this.name} 'cat <<EOF > ${path}\n${JSON.stringify(object, null, 2)}\nEOF'`);
+    if (config.verbose) {
+      console.log(JSON.stringify(object, null, 2));
+    }
+    const tmpFile = exec(`mktemp -p .`).trim();
+    try {
+      writeFileSync(tmpFile, JSON.stringify(object, null, 2));
+      this.copyFile(tmpFile, path);
+    } finally {
+      rmSync(tmpFile);
+    }
   }
 
   parseJSONFile(path) {
