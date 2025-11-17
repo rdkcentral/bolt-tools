@@ -168,15 +168,6 @@ function getConfig(remote, pkg) {
   return remote.parseJSONFile(configPath);
 }
 
-function getPlatform(remote) {
-  try {
-    const imageNameTab = remote.getTextFile("/version.txt").split("\n")[0].split("-");
-    return imageNameTab[imageNameTab.length - 2];
-  } catch (err) {
-    return "";
-  }
-}
-
 function makePkgName(id, version) {
   return id + "+" + version;
 }
@@ -254,17 +245,10 @@ function run(remoteName, pkg) {
   }
 
   if (!addDeviceGPULayer(remote, bundleConfig, layerDirs)) {
-    const platform = getPlatform(remote);
-    try {
-      applyGPUConfig(remote, bundleConfig, require(`./platform-${platform}.cjs`));
-    } catch (err) {
-      if (platform) {
-        console.error(`Platform ${platform} is not supported ${err}`);
-      } else {
-        console.error(`Cannot detect platform type`);
-      }
-      process.exit(-1);
-    }
+    console.error(`GPU layer not found!`);
+    console.error(`Please make sure the ${config.REMOTE_GPU_CONFIG} exists and contains valid information.`);
+    console.error(`See https://github.com/rdkcentral/bolt-tools/tree/main/gpu-layer-poc for help.`);
+    process.exit(-1);
   }
 
   setupResources(remote, pkg);
