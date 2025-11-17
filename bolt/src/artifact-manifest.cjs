@@ -43,7 +43,7 @@ function makeArtifactManifest(spec) {
     "artifactType": "application/vnd.rdk.package+type",
     "config": {
       "mediaType": "application/vnd.rdk.package.config.v1+json",
-      "digest": `sha256:${spec.configDigest}`,
+      "digest": spec.configDigest,
       "size": spec.configSize,
       "annotations": {
         "org.opencontainers.image.title": "package.json"
@@ -52,7 +52,7 @@ function makeArtifactManifest(spec) {
     "layers": [
       {
         "mediaType": "application/vnd.rdk.package.content.layer.v1.tar+gzip",
-        "digest": `sha256:${spec.contentDigest}`,
+        "digest": spec.contentDigest,
         "size": spec.contentSize,
         "annotations": {
           "org.opencontainers.image.title": imageTitle

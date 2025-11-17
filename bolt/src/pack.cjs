@@ -20,7 +20,7 @@
 const { digestFile } = require('./digest.cjs');
 const { makeArtifactManifest } = require('./artifact-manifest.cjs');
 const { exec } = require('./utils.cjs');
-const { statSync, mkdirSync, copyFileSync, renameSync, writeFileSync, rmSync, readFileSync } = require('node:fs');
+const { statSync, mkdirSync, renameSync, writeFileSync, rmSync, readFileSync } = require('node:fs');
 
 function validateConfig(config) {
   if ((config.packageType === "base" || config.packageType === "runtime" || config.packageType === "application") &&
@@ -35,7 +35,7 @@ function validateConfig(config) {
 }
 
 async function pack(configFile, content) {
-  const configStat = statSync(configFile);
+  statSync(configFile);
   statSync(content);
   const config = JSON.parse(readFileSync(configFile));
   validateConfig(config);
@@ -44,46 +44,92 @@ async function pack(configFile, content) {
   if (exec(`which ralfpack >/dev/null; echo $?`).trim() === "0") {
     exec(`ralfpack create --config ${configFile} --content ${content} --image-format erofs.lz4 ${output}.bolt`);
   } else {
-    await packInternal(configFile, content, configStat, config, output);
+    await packInternal(content, config, output);
   }
+
+  console.log(`Prepared ${output}.bolt package from ${configFile} and ${content}`);
 }
 
-async function packInternal(configFile, content, configStat, config, output) {
+async function importFile(output, inputFile) {
+  const inputFileDigest = await digestFile(inputFile);
+  const inputFileSize = statSync(inputFile).size;
+  renameSync(inputFile, output + '/blobs/sha256/' + inputFileDigest);
+
+  return {
+    digest: 'sha256:' + inputFileDigest,
+    size: inputFileSize
+  };
+}
+
+async function packInternal(content, config, output) {
   rmSync(output, { recursive: true, force: true });
   rmSync(output + ".bolt", { recursive: true, force: true });
-  const blobs = output + '/blobs/sha256';
+
+  mkdirSync(output + '/blobs/sha256', { recursive: true });
+
   const erofsTmpFile = output + '/erofs';
-  mkdirSync(blobs, { recursive: true });
   exec(`mkfs.erofs -zlz4 --all-root --tar --gzip ${erofsTmpFile} ${content}`);
   const erofsTmpFileStat = statSync(erofsTmpFile);
-  const rootHash = exec(`veritysetup format ${erofsTmpFile} ${erofsTmpFile} --hash-offset=${erofsTmpFileStat.size} | grep "Root hash:" | awk {'print $3'}`).trim();
-  const contentStat = statSync(erofsTmpFile);
-  const contentDigest = await digestFile(erofsTmpFile);
-  renameSync(erofsTmpFile, blobs + '/' + contentDigest);
-  const configDigest = await digestFile(configFile);
-  copyFileSync(configFile, output + '/blobs/sha256/' + configDigest);
+  const verityInfo = exec(`veritysetup format ${erofsTmpFile} ${erofsTmpFile} --hash-offset=${erofsTmpFileStat.size}`).trim().split('\n');
+  let rootHash;
+  let salt;
+
+  for (let line of verityInfo) {
+    if (line.startsWith('Root hash:')) {
+      rootHash = line.substring('Root hash:'.length).trim();
+    } else if (line.startsWith('Salt:')) {
+      salt = line.substring('Salt:'.length).trim();
+    }
+  }
+
+  if (!(typeof rootHash === "string" && rootHash.match(/^[0-9a-f]+$/) && typeof salt === "string" && salt.match(/^[0-9a-f]+$/))) {
+    console.error(`Cannot find "Root hash" and/or "Salt" in veritysetup command output!`);
+    process.exit(-1);
+  }
+
+  const contentInfo = await importFile(output, erofsTmpFile);
+
+  writeFileSync(output + '/config.json', JSON.stringify(config, null, 2));
+  const configInfo = await importFile(output, output + '/config.json');
 
   const manifest = makeArtifactManifest({
     type: config.packageType,
-    configSize: configStat.size,
-    configDigest,
-    contentSize: contentStat.size,
-    contentDigest
+    configSize: configInfo.size,
+    configDigest: configInfo.digest,
+    contentSize: contentInfo.size,
+    contentDigest: contentInfo.digest,
   });
 
   Object.assign(manifest.layers[0], {
     mediaType: "application/vnd.rdk.package.content.layer.v1.erofs+dmverity",
     annotations: {
       "org.rdk.package.content.dmverity.roothash": rootHash,
-      "org.rdk.package.content.dmverity.offset": erofsTmpFileStat.size
+      "org.rdk.package.content.dmverity.offset": "" + erofsTmpFileStat.size,
+      "org.rdk.package.content.dmverity.salt": salt,
     }
   });
 
-  writeFileSync(output + '/index.json', JSON.stringify(manifest, null, 2));
+  writeFileSync(output + '/manifest.json', JSON.stringify(manifest, null, 2));
+  const manifestInfo = await importFile(output, output + '/manifest.json');
+
+  const index = {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.index.v1+json",
+    "manifests": [
+      {
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "digest": manifestInfo.digest,
+        "size": manifestInfo.size,
+        "annotations": {
+          "org.opencontainers.image.ref.name": config.id
+        }
+      }
+    ]
+  };
+
+  writeFileSync(output + '/index.json', JSON.stringify(index, null, 2));
   writeFileSync(output + '/oci-layout', '{"imageLayoutVersion": "1.0.0"}');
   exec(`cd ${output} && zip -r ../${output}.bolt .`);
-
-  console.log(`Prepared ${output}.bolt package from ${configFile} and ${content}`);
 }
 
 exports.pack = pack;
