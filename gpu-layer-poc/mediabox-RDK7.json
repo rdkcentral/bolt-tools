@@ -1,0 +1,13 @@
+{
+  "vendorGpuSupport": {
+    "devNodes": [
+      "/dev/mali0",
+      "/dev/dri/card0",
+      "/dev/dma_heap/system",
+      "/dev/dma_heap/vo_non-ve"
+    ],
+    "groupIds": [
+      "video"
+    ]
+  }
+}
