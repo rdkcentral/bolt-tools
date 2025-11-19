@@ -116,29 +116,53 @@ function getRialtoSocketPath(pkg) {
   return "/tmp/" + getRialtoSocketName(pkg);
 }
 
+function prepareDisplay(remote, pkg) {
+
+  let createDisplayMethod = "org.rdk.RDKShell.1.createDisplay";
+  let createDisplayParams = {
+    client: pkg,
+    displayName: getWaylandSocketName(pkg),
+    rialtoSocket: getRialtoSocketName(pkg),
+  }
+  let setFocusMethod = "org.rdk.RDKShell.1.setFocus";
+
+  if (remote.fileExists(config.AI2_MANAGERS_ENABLED_FILE)) {
+    console.log(`Running ${pkg} using new AppManagers environment`);
+    createDisplayMethod = "org.rdk.RDKWindowManager.createDisplay";
+    createDisplayParams = {
+      displayParams: JSON.stringify(
+        {
+          client: pkg,
+          displayName: getWaylandSocketName(pkg),
+        }
+      )
+    };
+    setFocusMethod = "org.rdk.RDKWindowManager.setFocus";
+  }
+
+  const createDisplay = {
+    jsonrpc: "2.0",
+    id: 4,
+    method: createDisplayMethod,
+    params: createDisplayParams
+  };
+  remote.makeThunderRequest(createDisplay);
+
+  const setFocus = {
+    jsonrpc: "2.0",
+    id: 5,
+    method: setFocusMethod,
+    params: {
+      client: pkg
+    }
+  };
+  remote.makeThunderRequest(setFocus);
+
+}
+
 function setupResources(remote, pkg) {
   if (!remote.socketExists(getWaylandSocketPath(pkg))) {
-    const createDisplay = {
-      jsonrpc: "2.0",
-      id: 4,
-      method: "org.rdk.RDKShell.1.createDisplay",
-      params: {
-        client: pkg,
-        displayName: getWaylandSocketName(pkg),
-        rialtoSocket: getRialtoSocketName(pkg),
-      }
-    };
-    remote.makeThunderRequest(createDisplay);
-
-    const setFocus = {
-      jsonrpc: "2.0",
-      id: 4,
-      method: "org.rdk.RDKShell.1.setFocus",
-      params: {
-        client: pkg
-      }
-    };
-    remote.makeThunderRequest(setFocus);
+    prepareDisplay(remote, pkg);
   }
 }
 
