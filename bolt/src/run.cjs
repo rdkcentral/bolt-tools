@@ -123,7 +123,7 @@ function prepareDisplay(remote, pkg) {
     client: pkg,
     displayName: getWaylandSocketName(pkg),
     rialtoSocket: getRialtoSocketName(pkg),
-  }
+  };
   let setFocusMethod = "org.rdk.RDKShell.1.setFocus";
 
   if (remote.fileExists(config.AI2_MANAGERS_ENABLED_FILE)) {
