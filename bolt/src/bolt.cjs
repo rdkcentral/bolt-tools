@@ -22,6 +22,7 @@ const { extract } = require('./extract.cjs');
 const { pack } = require('./pack.cjs');
 const { push } = require('./push.cjs');
 const { run } = require('./run.cjs');
+const { make } = require('./make.cjs');
 
 function help() {
   console.log('Usage:');
@@ -52,6 +53,7 @@ const commands = {
   pack: { args: 2, handler: pack },
   push: { args: 2, handler: push },
   run: { args: 2, handler: run },
+  make: { args: 1, handler: make },
 };
 
 const command = commands[process.argv[2]];
