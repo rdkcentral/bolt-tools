@@ -162,7 +162,7 @@ async function makeCommand(packageAlias, workDir, options) {
         linkOrCopySync(packageFileName, packageStore.getPath() + '/' + packageFileName, options.overwrite);
       } catch (err) {
         if (err.code === 'EEXIST') {
-          throw new Error(`File ${packageStore.getPath() + '/' + packageFileName} already exists, use --install=force to overwrite.`);
+          throw new Error(`File ${packageStore.getPath() + '/' + packageFileName} already exists, use --force-install to overwrite.`);
         } else {
           throw err;
         }
@@ -178,19 +178,22 @@ exports.make = make;
 
 exports.makeOptions = {
   install(params, result) {
-    switch (params.options.install) {
-      case "":
-        Object.assign(result, {
-          install: true,
-          overwrite: false,
-        });
-        return true;
-      case "force":
-        Object.assign(result, {
-          install: true,
-          overwrite: true,
-        });
-        return true;
+    if (params.options.install === "") {
+      Object.assign(result, {
+        install: true,
+      });
+      return true;
+    }
+    return false;
+  },
+
+  "force-install"(params, result) {
+    if (params.options["force-install"] === "") {
+      Object.assign(result, {
+        install: true,
+        overwrite: true,
+      });
+      return true;
     }
     return false;
   }
