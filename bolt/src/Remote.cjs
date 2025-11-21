@@ -22,6 +22,8 @@ const config = require('./config.cjs');
 const { writeFileSync, rmSync } = require('node:fs');
 
 class Remote {
+  static useScpLegacy = true;
+
   constructor(name) {
     this.name = name;
   }
@@ -70,7 +72,16 @@ class Remote {
   }
 
   copyFile(localFile, remoteFile) {
-    exec(`scp -O ${localFile} ${this.name}:${remoteFile}`);
+    try {
+      exec(`scp ${Remote.useScpLegacy ? '-O ' : ''}${localFile} ${this.name}:${remoteFile}`);
+    } catch (e) {
+      if (Remote.useScpLegacy && e.message.includes('unknown option -- O')) {
+        exec(`scp ${localFile} ${this.name}:${remoteFile}`);
+        Remote.useScpLegacy = false;
+      } else {
+        throw e;
+      }
+    }
   }
 
   fileExists(path) {
