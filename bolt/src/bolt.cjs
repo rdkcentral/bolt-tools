@@ -17,12 +17,13 @@
  * limitations under the License.
 */
 
+const params = require('./params.cjs');
 const { diff } = require('./diff.cjs');
 const { extract } = require('./extract.cjs');
 const { pack } = require('./pack.cjs');
 const { push } = require('./push.cjs');
 const { run } = require('./run.cjs');
-const { make } = require('./make.cjs');
+const { make, makeOptions } = require('./make.cjs');
 
 function help() {
   console.log('Usage:');
@@ -43,22 +44,30 @@ function help() {
   process.exit(-1);
 }
 
-if (process.argv.length < 3) {
-  help();
-}
-
 const commands = {
   diff: { args: 3, handler: diff },
   extract: { args: 2, handler: extract },
   pack: { args: 2, handler: pack },
   push: { args: 2, handler: push },
   run: { args: 2, handler: run },
-  make: { args: 1, handler: make },
+  make: { args: 1, handler: make, options: makeOptions },
 };
 
-const command = commands[process.argv[2]];
-if (command && (!command.args || command.args === process.argv.length - 3)) {
-  command.handler(...process.argv.slice(3));
+function checkOptions(provided, allowed) {
+  const result = {};
+  for (let option in provided) {
+    if (!(allowed[option]?.(params, result))) {
+      return null;
+    }
+  }
+  return result;
+}
+
+const command = commands[params.args[0]];
+let options;
+if (command && command.args === params.args.length - 1 &&
+  ((options = checkOptions(params.options, command.options ?? {})))) {
+  command.handler(...params.args.slice(1), options);
 } else {
   help();
 }

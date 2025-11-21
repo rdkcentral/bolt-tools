@@ -19,9 +19,10 @@
 
 const { statSync, rmSync, readFileSync } = require('node:fs');
 const { assert } = require('node:console');
-const { exec, printError, makeWorkDir } = require('./utils.cjs');
+const { exec, printError, makeWorkDir, linkOrCopySync } = require('./utils.cjs');
 const { pack } = require('./pack.cjs');
 const { extract } = require('./extract.cjs');
+const { Package } = require('./Package.cjs');
 const { PackageStore } = require('./PackageStore.cjs');
 const { PackageConfigStore } = require('./PackageConfigStore.cjs');
 const { PackageBuilder } = require('./PackageBuilder.cjs');
@@ -84,10 +85,10 @@ function bitbakeMakeOCIImage(config) {
   throw new Error(`Image not found: ${defaultImage}`);
 }
 
-async function make(packageAlias) {
+async function make(packageAlias, options) {
   let workDir = makeWorkDir();
   try {
-    await makeCommand(packageAlias, workDir);
+    await makeCommand(packageAlias, workDir, options);
   } catch (e) {
     printError(e);
   } finally {
@@ -95,7 +96,7 @@ async function make(packageAlias) {
   }
 }
 
-async function makeCommand(packageAlias, workDir) {
+async function makeCommand(packageAlias, workDir, options) {
   const packageConfigStore = new PackageConfigStore(detectMainLayerDir() ?? process.cwd(), packageAlias);
   const packageConfig = packageConfigStore.getTopConfig();
   const packageBoltConfig = packageConfigStore.getTopBoltConfig();
@@ -104,15 +105,26 @@ async function makeCommand(packageAlias, workDir) {
     throw new Error(`Package config for ${packageAlias} not found!`);
   }
 
+  let packageStore;
+  const constructPackageStore = function () {
+    if (!packageStore) {
+      packageStore = new PackageStore(process.env.BUILDDIR ?? process.cwd(), workDir);
+    }
+    return packageStore;
+  };
+
+  if (options.install && constructPackageStore().getPath() === '') {
+    throw new Error(`Package store not found!`);
+  }
+
   let contentFile;
 
   if (packageBoltConfig?.bitbake?.image) {
-    const packageStore = new PackageStore(process.env.BUILDDIR ?? process.cwd(), workDir);
     const packageRootfsDir = `${workDir}/${packageConfig.getFullName()}-rootfs`;
     const packageLayerArchive = `${workDir}/${packageConfig.getFullName()}-layer.tgz`;
     const packages = PackageDependencyResolver.getDependencies(
       packageConfig.getFullName(),
-      new PackageProvider(packageStore, packageConfigStore)
+      new PackageProvider(constructPackageStore(), packageConfigStore)
     );
     const last = packages.pop();
 
@@ -144,9 +156,42 @@ async function makeCommand(packageAlias, workDir) {
 
   if (contentFile) {
     await pack(packageConfig.getPath(), contentFile);
+    if (options.install) {
+      const packageFileName = Package.makeFileName(packageConfig.getFullName());
+      try {
+        linkOrCopySync(packageFileName, packageStore.getPath() + '/' + packageFileName, options.overwrite);
+      } catch (err) {
+        if (err.code === 'EEXIST') {
+          throw new Error(`File ${packageStore.getPath() + '/' + packageFileName} already exists, use --install=force to overwrite.`);
+        } else {
+          throw err;
+        }
+      }
+      console.log(`Installed ${packageFileName} in ${packageStore.getPath()}`);
+    }
   } else {
     throw new Error(`No instructions to make ${packageAlias}!`);
   }
 }
 
 exports.make = make;
+
+exports.makeOptions = {
+  install(params, result) {
+    switch (params.options.install) {
+      case "":
+        Object.assign(result, {
+          install: true,
+          overwrite: false,
+        });
+        return true;
+      case "force":
+        Object.assign(result, {
+          install: true,
+          overwrite: true,
+        });
+        return true;
+    }
+    return false;
+  }
+};
