@@ -21,6 +21,8 @@ const { statSync, readFileSync, existsSync } = require('node:fs');
 const { exec } = require('./utils.cjs');
 const { PackageConfig } = require('./PackageConfig.cjs');
 
+const PACKAGE_FILE_EXTENSION = ".bolt";
+
 class Package {
   static fromPath(path, fullName, workDir) {
     if (Package.validatePackageByPath(path)) {
@@ -30,8 +32,12 @@ class Package {
     }
   }
 
+  static makeFileName(fullName) {
+    return fullName + PACKAGE_FILE_EXTENSION;
+  }
+
   static validatePackageByPath(path) {
-    return path?.endsWith('.bolt') && statSync(path, { throwIfNoEntry: false })?.isFile();
+    return path?.endsWith(PACKAGE_FILE_EXTENSION) && statSync(path, { throwIfNoEntry: false })?.isFile();
   }
 
   static getPathFromInfo(ociDir, entry) {

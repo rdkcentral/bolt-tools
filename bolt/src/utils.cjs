@@ -17,7 +17,7 @@
  * limitations under the License.
 */
 
-const { renameSync, copyFileSync, unlinkSync, mkdtempSync } = require('node:fs');
+const { renameSync, copyFileSync, linkSync, unlinkSync, mkdtempSync } = require('node:fs');
 const { join } = require('node:path');
 const { execSync } = require('node:child_process');
 const { verbose } = require('./config.cjs');
@@ -69,6 +69,27 @@ function moveSync(from, to) {
   }
 }
 
+function linkOrCopySync(from, to, overwrite) {
+  try {
+    linkSync(from, to);
+  } catch (err) {
+    try {
+      if (err.code === 'EEXIST' && overwrite) {
+        unlinkSync(to);
+        linkSync(from, to);
+      } else {
+        throw err;
+      }
+    } catch (err) {
+      if (err.code === 'EXDEV') {
+        copyFileSync(from, to);
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 function printError(e) {
   if (!verbose) {
     console.error(`${e}`);
@@ -84,5 +105,6 @@ function makeWorkDir() {
 exports.exec = exec;
 exports.execNoOutput = execNoOutput;
 exports.moveSync = moveSync;
+exports.linkOrCopySync = linkOrCopySync;
 exports.printError = printError;
 exports.makeWorkDir = makeWorkDir;
