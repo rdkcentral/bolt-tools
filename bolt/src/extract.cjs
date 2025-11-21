@@ -29,7 +29,7 @@ function extract(image, output) {
   const index = JSON.parse(readFileSync(`${dir}/oci/index.json`));
   const [manifestAlgo, manifestDigest] = index.manifests[0].digest.split(':');
   const manifest = JSON.parse(readFileSync(`${dir}/oci/blobs/${manifestAlgo}/${manifestDigest}`));
-  const [overlayAlgo, overlayDigest] = manifest.layers.findLast(() => true).digest.split(':');
+  const [overlayAlgo, overlayDigest] = manifest.layers.at(-1).digest.split(':');
   moveSync(`${dir}/oci/blobs/${overlayAlgo}/${overlayDigest}`, output);
 
   rmSync(dir, { recursive: true, force: true });

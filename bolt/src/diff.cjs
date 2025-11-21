@@ -77,7 +77,7 @@ function diff(bottom, top, layer) {
   */
 
   const manifest = JSON.parse(readFileSync(`${dir}/bottom/oci/blobs/${manifestAlgo}/${manifestDigest}`));
-  const [layerAlgo, layerDigest] = manifest.layers.findLast(() => true).digest.split(':');
+  const [layerAlgo, layerDigest] = manifest.layers.at(-1).digest.split(':');
 
   exec(`cp ${dir}/bottom/oci/blobs/${layerAlgo}/${layerDigest} ${layer}`);
 
