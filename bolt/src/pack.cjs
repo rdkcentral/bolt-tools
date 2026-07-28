@@ -23,16 +23,12 @@ const { ZIPPackageBuilder } = require('./ZIPPackageBuilder.cjs');
 const { commonOptions } = require('./commonOptions.cjs');
 const { exec, execv, assertFile } = require('./utils.cjs');
 const { statSync, mkdirSync, rmSync, readFileSync } = require('node:fs');
+const { PackageConfig } = require('./PackageConfig.cjs');
 
 function validateConfig(config) {
-  if ((config.packageType === "base" || config.packageType === "runtime" || config.packageType === "application") &&
-    typeof config.id === "string" &&
-    typeof config.version === "string" &&
-    typeof config.versionName === "string" &&
-    typeof config.name === "string") {
-    return;
-  } else {
-    throw new Error(`Invalid config:\n ${JSON.stringify(config, null, 2)}`);
+  PackageConfig.validate(config);
+  if (!PackageConfig.isKnownPackageType(config.packageType)) {
+    console.warn(`Warning: Unknown packageType: ${config.packageType}`);
   }
 }
 
