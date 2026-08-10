@@ -26,15 +26,29 @@ class PackageConfig {
   }
 
   static validate(config) {
-    if ((config.packageType === "base" || config.packageType === "runtime" || config.packageType === "application") &&
+    if (typeof config === "object" && config !== null &&
+      typeof config.packageType === "string" &&
       typeof config.id === "string" &&
       typeof config.version === "string" &&
       typeof config.entryPoint === "string" &&
-      typeof config.name === "string") {
+      typeof config.name === "string" &&
+      (config.versionName === undefined || typeof config.versionName === "string")) {
       return;
     } else {
       throw new Error(`Invalid config:\n ${JSON.stringify(config, null, 2)}`);
     }
+  }
+
+  static isKnownPackageType(packageType) {
+    switch (packageType) {
+      case "base":
+      case "runtime":
+      case "application":
+      case "service":
+      case "resource":
+        return true;
+    }
+    return false;
   }
 
   static fromPath(path) {
