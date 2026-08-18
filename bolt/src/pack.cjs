@@ -98,7 +98,6 @@ function packInternal(content, config, output, options) {
   const configInfo = builder.importObject(config);
 
   const manifest = makeArtifactManifest({
-    type: config.packageType,
     configSize: configInfo.size,
     configDigest: configInfo.digest,
     contentSize: contentInfo.size,
@@ -106,7 +105,6 @@ function packInternal(content, config, output, options) {
   });
 
   Object.assign(manifest.layers[0], {
-    mediaType: "application/vnd.rdk.package.content.layer.v1.erofs+dmverity",
     annotations: {
       "org.rdk.package.content.dmverity.roothash": rootHash,
       "org.rdk.package.content.dmverity.offset": "" + erofsTmpFileStat.size,

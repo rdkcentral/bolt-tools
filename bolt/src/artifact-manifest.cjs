@@ -17,26 +17,8 @@
  * limitations under the License.
 */
 
-const assert = require('node:assert');
-
 // see https://github.com/rdkcentral/oci-package-spec/blob/main/format.md
 function makeArtifactManifest(spec) {
-  let imageTitle;
-
-  switch (spec.type) {
-    case 'application':
-      imageTitle = 'package.tar.gz';
-      break;
-    case 'runtime':
-      imageTitle = 'runtime.tar.gz';
-      break;
-    case 'base':
-      imageTitle = 'base.tar.gz';
-      break;
-  }
-
-  assert(imageTitle);
-
   return {
     "schemaVersion": 2,
     "mediaType": "application/vnd.oci.image.manifest.v1+json",
@@ -51,12 +33,9 @@ function makeArtifactManifest(spec) {
     },
     "layers": [
       {
-        "mediaType": "application/vnd.rdk.package.content.layer.v1.tar+gzip",
+        "mediaType": "application/vnd.rdk.package.content.layer.v1.erofs+dmverity",
         "digest": spec.contentDigest,
         "size": spec.contentSize,
-        "annotations": {
-          "org.opencontainers.image.title": imageTitle
-        }
       }
     ]
   };
